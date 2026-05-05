@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8-Puzzle · Solver A*</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── CSS VARIABLES ─────────────────────────────────────────── */
+    :root {
+      --bg0: #07090f;
+      --bg1: #0d1120;
+      --bg2: #111827;
+      --bg3: #1a2236;
+      --border: rgba(255,255,255,0.07);
+      --border-m: rgba(255,255,255,0.11);
+      --border-h: rgba(255,255,255,0.18);
+      --accent:   #818cf8;
+      --accent-d: #6366f1;
+      --accent-bg: rgba(99,102,241,0.12);
+      --accent-bd: rgba(99,102,241,0.35);
+      --success:  #34d399;
+      --success-bg: rgba(52,211,153,0.1);
+      --success-bd: rgba(52,211,153,0.3);
+      --danger:   #f87171;
+      --warn:     #fbbf24;
+      --t1: #f1f5f9;
+      --t2: #94a3b8;
+      --t3: #475569;
+      --t4: #1e293b;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.5);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.55), 0 1px 3px rgba(0,0,0,.4);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,.65), 0 4px 8px rgba(0,0,0,.4);
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --r-xl: 20px;
+      --tile-size: 88px;
+      --tile-gap: 8px;
+      --tile-font: 34px;
+    }
+
+    [data-theme="light"] {
+      --bg0: #f0f2f5;
+      --bg1: #e8ecf1;
+      --bg2: #ffffff;
+      --bg3: #f4f6f9;
+      --border: rgba(0,0,0,0.07);
+      --border-m: rgba(0,0,0,0.11);
+      --border-h: rgba(0,0,0,0.2);
+      --accent:   #6366f1;
+      --accent-d: #4f46e5;
+      --accent-bg: rgba(99,102,241,0.08);
+      --accent-bd: rgba(99,102,241,0.3);
+      --success:  #059669;
+      --success-bg: rgba(5,150,105,0.08);
+      --success-bd: rgba(5,150,105,0.3);
+      --danger:   #dc2626;
+      --warn:     #d97706;
+      --t1: #0f172a;
+      --t2: #64748b;
+      --t3: #94a3b8;
+      --t4: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.07);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.08);
+    }
+
+    /* ── RESET ──────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg0);
+      color: var(--t1);
+      min-height: 100vh;
+      transition: background .3s, color .3s;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────────────── */
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      gap: 1rem;
+    }
+    .header-title {
+      font-size: clamp(1.3rem, 3vw, 1.75rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--t1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid var(--accent-bd);
+      background: var(--accent-bg);
+      color: var(--accent);
+    }
+    .header-sub {
+      font-size: 13px;
+      color: var(--t2);
+      margin-top: 4px;
+    }
+    .theme-btn {
+      flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg2);
+      border: 1px solid var(--border-m);
+      border-radius: var(--r-md);
+      color: var(--t2);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .theme-btn:hover {
+      color: var(--t1);
+      border-color: var(--border-h);
+      background: var(--bg3);
+    }
+    .theme-btn svg { pointer-events: none; }
+
+    /* ── MAIN GRID ───────────────────────────────────────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1.25rem;
+      align-items: start;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── CARD BASE ───────────────────────────────────────────────── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-md);
+      transition: border-color .2s;
+    }
+    .card-header {
+      padding: .9rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      color: var(--t3);
+    }
+    .card-body { padding: 1.25rem; }
+
+    /* ── BOARD ───────────────────────────────────────────────────── */
+    .board-card .card-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, var(--tile-size));
+      grid-template-rows: repeat(3, var(--tile-size));
+      gap: var(--tile-gap);
+    }
+
+    .tile {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--tile-font);
+      font-weight: 600;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      border-radius: var(--r-lg);
+      cursor: pointer;
+      user-select: none;
+      border: 1.5px solid var(--border-m);
+      background: var(--bg3);
+      color: var(--t1);
+      transition:
+        transform .18s cubic-bezier(.34,1.56,.64,1),
+        background .18s, border-color .18s, color .18s,
+        box-shadow .18s, opacity .15s;
+      position: relative;
+    }
+    .tile::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(135deg, rgba(255,255,255,.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .tile:not(.blank):hover {
+      transform: scale(1.06) translateY(-1px);
+      border-color: var(--border-h);
+      box-shadow: var(--shadow-md);
+    }
+    .tile.blank {
+      background: transparent;
+      border: 2px dashed rgba(255,255,255,0.06);
+      cursor: default;
+    }
+    [data-theme="light"] .tile.blank {
+      border-color: rgba(0,0,0,0.06);
+    }
+    .tile.movable {
+      border-color: var(--accent-bd);
+      background: var(--accent-bg);
+      color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent-bd), 0 4px 16px rgba(99,102,241,.18);
+      cursor: pointer;
+    }
+    .tile.movable:hover {
+      transform: scale(1.08) translateY(-2px);
+      box-shadow: 0 0 0 2px var(--accent-bd), 0 8px 24px rgba(99,102,241,.28);
+    }
+    .tile.solved {
+      border-color: var(--success-bd);
+      background: var(--success-bg);
+      color: var(--success);
+      cursor: default;
+    }
+    .tile:active:not(.blank) {
+      transform: scale(.92) !important;
+    }
+
+    @keyframes tile-pop {
+      0% { transform: scale(.85); opacity: .5; }
+      70% { transform: scale(1.04); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .tile-pop { animation: tile-pop .2s cubic-bezier(.34,1.56,.64,1); }
+
+    /* Move info strip */
+    .move-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 1rem;
+      padding-top: .85rem;
+      border-top: 1px solid var(--border);
+      width: 100%;
+    }
+    .move-label {
+      font-size: 10.5px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--t3);
+    }
+    .move-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 500;
+      padding: 2px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border-m);
+      background: var(--accent-bg);
+      color: var(--accent);
+    }
+
+    /* ── STATS COLUMN ────────────────────────────────────────────── */
+    .stats-col { display: flex; flex-direction: column; gap: 1rem; }
+
+    .sec-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      color: var(--t3);
+      margin-bottom: 8px;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: .9rem;
+      box-shadow: var(--shadow-sm);
+      transition: border-color .2s, transform .15s;
+    }
+    .metric-card:hover { border-color: var(--border-m); }
+
+    .m-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 7px;
+    }
+    .ic-indigo { background: var(--accent-bg); color: var(--accent); }
+    .ic-blue  { background: rgba(59,130,246,.12); color: #60a5fa; }
+    .ic-amber { background: rgba(251,191,36,.12); color: #fbbf24; }
+    .ic-cyan  { background: rgba(6,182,212,.12); color: #22d3ee; }
+    .ic-green { background: var(--success-bg); color: var(--success); }
+
+    .m-label {
+      font-size: 11px;
+      color: var(--t2);
+      font-weight: 500;
+      margin-bottom: 3px;
+      line-height: 1.3;
+    }
+    .m-val {
+      font-size: 24px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--t1);
+      line-height: 1;
+      transition: color .3s;
+    }
+
+    /* Wide card for steps + goal */
+    .metric-card.wide { grid-column: span 2; }
+    .wide-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.25rem;
+    }
+
+    /* Goal mini-board */
+    .goal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 26px);
+      gap: 2px;
+    }
+    .g-cell {
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--t2);
+    }
+    .g-cell.g0 { background: transparent; border-color: transparent; }
+
+    /* ── STATUS BAR ──────────────────────────────────────────────── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: .7rem 1rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      font-size: 13px;
+      color: var(--t2);
+      min-height: 42px;
+      transition: border-color .25s, background .25s, color .25s;
+      margin-bottom: .85rem;
+    }
+    .status-bar.ok {
+      border-color: var(--success-bd);
+      background: var(--success-bg);
+      color: var(--success);
+    }
+    .status-bar.err {
+      border-color: rgba(248,113,113,.35);
+      background: rgba(248,113,113,.08);
+      color: var(--danger);
+    }
+    .status-bar svg { flex-shrink: 0; }
+
+    /* ── CONTROLS CARD ───────────────────────────────────────────── */
+    .controls-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: .85rem 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: .85rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border-m);
+      background: var(--bg3);
+      color: var(--t1);
+      cursor: pointer;
+      transition: all .15s ease;
+      white-space: nowrap;
+      line-height: 1;
+    }
+    .btn:hover:not(:disabled) {
+      background: var(--bg1);
+      border-color: var(--border-h);
+    }
+    .btn:active:not(:disabled) { transform: scale(.95); }
+    .btn:disabled { opacity: .3; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--accent-d);
+      border-color: var(--accent-d);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(99,102,241,.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #4f46e5;
+      border-color: #4f46e5;
+      box-shadow: 0 4px 14px rgba(99,102,241,.45);
+    }
+    .btn-success {
+      background: #059669;
+      border-color: #059669;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(5,150,105,.3);
+    }
+    .btn-success:hover:not(:disabled) {
+      background: #047857;
+      border-color: #047857;
+      box-shadow: 0 4px 14px rgba(5,150,105,.4);
+    }
+    [data-theme="dark"] .btn-success {
+      background: #065f46;
+      border-color: #34d399;
+      color: var(--success);
+    }
+    [data-theme="dark"] .btn-success:hover:not(:disabled) {
+      background: #064e3b;
+      box-shadow: 0 4px 14px rgba(52,211,153,.25);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--t2);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--bg3);
+      color: var(--t1);
+    }
+    .btn-danger {
+      background: transparent;
+      color: var(--t3);
+      border-color: var(--border);
+    }
+    .btn-danger:hover:not(:disabled) {
+      color: var(--danger);
+      border-color: rgba(248,113,113,.4);
+      background: rgba(248,113,113,.06);
+    }
+
+    .v-divider {
+      width: 1px;
+      height: 22px;
+      background: var(--border-m);
+      margin: 0 1px;
+      flex-shrink: 0;
+    }
+
+    /* Speed control */
+    .speed-ctrl {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 5px 10px;
+    }
+    .speed-ctrl svg { flex-shrink: 0; }
+    .speed-lbl {
+      font-size: 11px;
+      color: var(--t3);
+      white-space: nowrap;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 76px;
+      height: 3px;
+      background: var(--border-m);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg2);
+      box-shadow: 0 0 0 2px var(--accent-bd);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+    input[type="range"]::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg2);
+      cursor: pointer;
+    }
+
+    /* ── PATH / TIMELINE ─────────────────────────────────────────── */
+    .path-section {
+      display: none;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .path-header {
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .path-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      color: var(--t3);
+    }
+    .path-counter {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--t3);
+    }
+    .progress-wrap {
+      padding: 8px 1rem 0;
+    }
+    .progress-bg {
+      background: var(--border);
+      border-radius: 3px;
+      height: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-d), var(--accent));
+      border-radius: 3px;
+      width: 0%;
+      transition: width .35s cubic-bezier(.4,0,.2,1);
+    }
+    .path-scroll {
+      padding: .65rem 1rem;
+      overflow-x: auto;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+    }
+    .path-scroll::-webkit-scrollbar { height: 2px; }
+    .path-scroll::-webkit-scrollbar-track { background: transparent; }
+    .path-scroll::-webkit-scrollbar-thumb { background: var(--border-m); border-radius: 1px; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all .2s;
+      border: 1px solid transparent;
+    }
+    .chip.done { color: var(--t3); }
+    .chip.cur {
+      background: var(--accent-bg);
+      border-color: var(--accent-bd);
+      color: var(--accent);
+      box-shadow: 0 0 8px rgba(99,102,241,.2);
+    }
+    .chip.pending { color: var(--t3); opacity: .55; }
+    .sep { color: var(--t4); font-size: 9px; margin: 0 1px; }
+
+    /* ── SOLVED PULSE ─────────────────────────────────────────────── */
+    @keyframes solved-pulse {
+      0%, 100% { box-shadow: var(--shadow-md); }
+      40% { box-shadow: 0 0 0 4px var(--success-bd), var(--shadow-lg); }
+    }
+    .board-card.is-solved { animation: solved-pulse .9s ease 2; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spin { display: inline-block; animation: spin .7s linear infinite; }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .board-card .card-body { align-items: center; }
+      :root {
+        --tile-size: 80px;
+        --tile-gap: 6px;
+        --tile-font: 30px;
+      }
+    }
+    @media (max-width: 420px) {
+      .page { padding: 1rem .75rem 2rem; }
+      :root {
+        --tile-size: 72px;
+        --tile-gap: 5px;
+        --tile-font: 26px;
+      }
+      .controls-card { gap: 5px; }
+      .btn { padding: 6px 10px; font-size: 12px; }
+      .speed-ctrl { margin-left: 0; width: 100%; justify-content: center; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <div>
+      <div class="header-title">
+        8-Puzzle Solver
+        <span class="badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          A* Search
+        </span>
+      </div>
+      <div class="header-sub">Búsqueda A* · Heurística de distancia Manhattan</div>
+    </div>
+    <button class="theme-btn" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema">
+      <!-- moon icon -->
+      <svg id="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- ── MAIN GRID ── -->
+  <div class="main-grid">
+
+    <!-- Board column -->
+    <div>
+      <div class="card board-card" id="board-card">
+        <div class="card-header">
+          <span class="card-label">Estado actual S</span>
+          <span id="kbd-hint" style="font-size:10.5px;color:var(--t3)">← → ↑ ↓ para mover</span>
+        </div>
+        <div class="card-body">
+          <div class="board" id="board"></div>
+          <div class="move-strip">
+            <span class="move-label">Último movimiento</span>
+            <span class="move-badge" id="last-move">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats column -->
+    <div class="stats-col">
+      <div>
+        <div class="sec-label">Métricas A*</div>
+        <div class="metrics-grid">
+
+          <!-- h(n) -->
+          <div class="metric-card">
+            <div class="m-icon ic-indigo">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="m-label">h(n) — Manhattan</div>
+            <div class="m-val" id="stat-h">0</div>
+          </div>
+
+          <!-- g(n) -->
+          <div class="metric-card">
+            <div class="m-icon ic-blue">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="m-label">g(n) — Costo acum.</div>
+            <div class="m-val" id="stat-g">0</div>
+          </div>
+
+          <!-- f(n) -->
+          <div class="metric-card">
+            <div class="m-icon ic-amber">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div class="m-label">f(n) = g + h</div>
+            <div class="m-val" id="stat-f">0</div>
+          </div>
+
+          <!-- Nodes -->
+          <div class="metric-card">
+            <div class="m-icon ic-cyan">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+            </div>
+            <div class="m-label">Nodos explorados</div>
+            <div class="m-val" id="stat-nodes">—</div>
+          </div>
+
+          <!-- Steps + Goal (wide) -->
+          <div class="metric-card wide">
+            <div class="wide-inner">
+              <div>
+                <div class="m-icon ic-green" style="margin-bottom:6px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="m-label">Solución óptima</div>
+                <div class="m-val" id="stat-len">—</div>
+              </div>
+              <div style="flex:1">
+                <div class="sec-label" style="margin-bottom:7px">Estado objetivo S*</div>
+                <div class="goal-grid" id="goal-mini"></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /metrics-grid -->
+      </div>
+    </div><!-- /stats-col -->
+  </div><!-- /main-grid -->
+
+  <!-- ── STATUS BAR ── -->
+  <div class="status-bar" id="status-bar">
+    <svg id="status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="status-text">Presiona Barajar para generar un estado inicial aleatorio, luego Resolver (A*).</span>
+  </div>
+
+  <!-- ── CONTROLS ── -->
+  <div class="controls-card">
+
+    <button class="btn btn-primary" onclick="shuffle()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+      Barajar
+    </button>
+
+    <button class="btn btn-success" id="btn-solve" onclick="solve()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Resolver A*
+    </button>
+
+    <div class="v-divider"></div>
+
+    <button class="btn btn-ghost" onclick="stepBack()" id="btn-back" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Atrás
+    </button>
+
+    <button class="btn btn-ghost" onclick="stepFwd()" id="btn-fwd" disabled>
+      Adelante
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+
+    <button class="btn btn-ghost" onclick="togglePlay()" id="btn-play" disabled>
+      <svg id="play-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span id="play-label">Auto</span>
+    </button>
+
+    <div class="v-divider"></div>
+
+    <button class="btn btn-danger" onclick="resetBoard()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95L1 10"/></svg>
+      Reiniciar
+    </button>
+
+    <div class="speed-ctrl">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t3)"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      <span class="speed-lbl">Velocidad</span>
+      <input type="range" id="speed" min="1" max="9" value="5">
+    </div>
+
+  </div><!-- /controls -->
+
+  <!-- ── PATH TIMELINE ── -->
+  <div class="path-section" id="path-wrap">
+    <div class="path-header">
+      <span class="path-title">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Secuencia de movimientos
+      </span>
+      <span class="path-counter" id="path-counter">0 / 0</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bg">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+    <div class="path-scroll" id="path-scroll"></div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+/* ── THEME TOGGLE ───────────────────────────────────────────────── */
+const html = document.documentElement;
+let isDark = true;
+const themeBtn = document.getElementById('theme-toggle');
+const themeIcon = document.getElementById('theme-icon');
+
+const MOON_PATH = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+const SUN_PATHS = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+
+themeBtn.addEventListener('click', () => {
+  isDark = !isDark;
+  html.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  themeIcon.innerHTML = isDark ? MOON_PATH : SUN_PATHS;
+});
+
+/* ── PUZZLE LOGIC ───────────────────────────────────────────────── */
+const GOAL = [1,2,3,4,5,6,7,8,0];
+let cur = [...GOAL], sol = null, step = 0, gCost = 0, playing = false, tid = null;
+
+const key  = s => s.join(',');
+
+function manhattan(s) {
+  let d = 0;
+  for (let i = 0; i < 9; i++) {
+    const t = s[i];
+    if (!t) continue;
+    const gr = (t-1)/3|0, gc = (t-1)%3, cr = i/3|0, cc = i%3;
+    d += Math.abs(cr-gr) + Math.abs(cc-gc);
+  }
+  return d;
+}
+
+function solvable(s) {
+  const a = s.filter(x => x);
+  let inv = 0;
+  for (let i = 0; i < a.length; i++)
+    for (let j = i+1; j < a.length; j++)
+      if (a[i] > a[j]) inv++;
+  return inv % 2 === 0;
+}
+
+function neighbors(s) {
+  const bl = s.indexOf(0), r = bl/3|0, c = bl%3, ms = [];
+  if (r > 0) ms.push({d:'↑ Arriba',    sw: bl-3});
+  if (r < 2) ms.push({d:'↓ Abajo',     sw: bl+3});
+  if (c > 0) ms.push({d:'← Izquierda', sw: bl-1});
+  if (c < 2) ms.push({d:'→ Derecha',   sw: bl+1});
+  return ms.map(({d, sw}) => {
+    const n = [...s];
+    [n[bl], n[sw]] = [n[sw], n[bl]];
+    return {s: n, m: d};
+  });
+}
+
+/* Min-heap for A* */
+class Heap {
+  constructor() { this.h = []; }
+  push(x) { this.h.push(x); this._up(this.h.length-1); }
+  pop() {
+    const top = this.h[0], last = this.h.pop();
+    if (this.h.length) { this.h[0] = last; this._dn(0); }
+    return top;
+  }
+  _up(i) {
+    while (i > 0) {
+      const p = (i-1) >> 1;
+      if (this.h[p].f <= this.h[i].f) break;
+      [this.h[p], this.h[i]] = [this.h[i], this.h[p]]; i = p;
+    }
+  }
+  _dn(i) {
+    const n = this.h.length;
+    for (;;) {
+      let s = i, l = 2*i+1, r = 2*i+2;
+      if (l < n && this.h[l].f < this.h[s].f) s = l;
+      if (r < n && this.h[r].f < this.h[s].f) s = r;
+      if (s === i) break;
+      [this.h[i], this.h[s]] = [this.h[s], this.h[i]]; i = s;
+    }
+  }
+  get size() { return this.h.length; }
+}
+
+function astar(start) {
+  const gk = key(GOAL);
+  if (key(start) === gk) return {path: [], states: [start], nodes: 0};
+  const open = new Heap(), closed = new Map();
+  const h0 = manhattan(start);
+  open.push({s: start, g: 0, h: h0, f: h0, par: null, m: null});
+  let exp = 0;
+  while (open.size) {
+    const nd = open.pop(), k = key(nd.s);
+    if (closed.has(k)) continue;
+    closed.set(k, nd); exp++;
+    if (k === gk) {
+      const mvs = [], sts = [];
+      let n = nd;
+      while (n) { mvs.unshift(n.m); sts.unshift(n.s); n = n.par; }
+      mvs.shift();
+      return {path: mvs, states: sts, nodes: exp, cost: nd.g};
+    }
+    for (const {s: ns, m} of neighbors(nd.s)) {
+      const nk = key(ns);
+      if (closed.has(nk)) continue;
+      const g = nd.g + 1, h = manhattan(ns);
+      open.push({s: ns, g, h, f: g+h, par: nd, m});
+    }
+  }
+  return null;
+}
+
+/* ── RENDER ─────────────────────────────────────────────────────── */
+function render(lastMove) {
+  const board = document.getElementById('board');
+  const boardCard = document.getElementById('board-card');
+  const solved = key(cur) === key(GOAL);
+  const bl = cur.indexOf(0), r = bl/3|0, c = bl%3;
+  const mv = new Set();
+  if (r > 0) mv.add(bl-3);
+  if (r < 2) mv.add(bl+3);
+  if (c > 0) mv.add(bl-1);
+  if (c < 2) mv.add(bl+1);
+
+  board.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const t = cur[i], el = document.createElement('div');
+    if (!t)          el.className = 'tile blank';
+    else if (solved) el.className = 'tile solved tile-pop';
+    else if (mv.has(i)) el.className = 'tile movable tile-pop';
+    else             el.className = 'tile tile-pop';
+    el.textContent = t || '';
+    if (t) el.onclick = () => manualMove(i);
+    board.appendChild(el);
+  }
+
+  // Update metric values
+  const h = manhattan(cur), g = gCost, f = g + h;
+  animateNum('stat-h', h);
+  animateNum('stat-g', g);
+  animateNum('stat-f', f);
+  document.getElementById('last-move').textContent = lastMove || '—';
+
+  if (solved) {
+    boardCard.classList.remove('is-solved');
+    void boardCard.offsetWidth; // reflow
+    boardCard.classList.add('is-solved');
+    setStatus('¡Estado objetivo S* alcanzado! Solución encontrada.', 'ok');
+  }
+
+  // Strip animation class
+  setTimeout(() => {
+    board.querySelectorAll('.tile-pop').forEach(el => el.classList.remove('tile-pop'));
+  }, 250);
+}
+
+/* Smooth number flicker */
+function animateNum(id, target) {
+  const el = document.getElementById(id);
+  const cur = parseInt(el.textContent) || 0;
+  if (cur === target || isNaN(cur)) { el.textContent = target; return; }
+  let start = null;
+  const dur = 220;
+  const step = ts => {
+    if (!start) start = ts;
+    const p = Math.min((ts - start) / dur, 1);
+    el.textContent = Math.round(cur + (target - cur) * p);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function renderGoal() {
+  const el = document.getElementById('goal-mini');
+  el.innerHTML = '';
+  GOAL.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'g-cell' + (t === 0 ? ' g0' : '');
+    d.textContent = t || '';
+    el.appendChild(d);
+  });
+}
+
+function renderPath() {
+  if (!sol) return;
+  const pw    = document.getElementById('path-wrap');
+  const ps    = document.getElementById('path-scroll');
+  const cnt   = document.getElementById('path-counter');
+  const fill  = document.getElementById('progress-fill');
+  pw.style.display = 'block';
+
+  const total = sol.path.length;
+  fill.style.width = total > 0 ? (step / total * 100) + '%' : '0%';
+  cnt.textContent = `${step} / ${total}`;
+
+  ps.innerHTML = sol.path.map((m, i) => {
+    const cls = i < step-1 ? 'done' : i === step-1 ? 'cur' : 'pending';
+    const sep = i < sol.path.length-1 ? '<span class="sep">›</span>' : '';
+    return `<span class="chip ${cls}">${m}</span>${sep}`;
+  }).join('');
+
+  const cur = ps.querySelector('.chip.cur');
+  if (cur) cur.scrollIntoView({inline: 'center', block: 'nearest'});
+}
+
+/* ── STATUS ─────────────────────────────────────────────────────── */
+const INFO_SVG    = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+const CHECK_SVG   = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>';
+const ALERT_SVG   = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+const LOADING_SVG = '<line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>';
+
+function setStatus(msg, type = '') {
+  const bar  = document.getElementById('status-bar');
+  const txt  = document.getElementById('status-text');
+  const icon = document.getElementById('status-icon');
+  txt.textContent = msg;
+  bar.className = 'status-bar' + (type ? ' ' + type : '');
+  icon.innerHTML = type === 'ok' ? CHECK_SVG : type === 'err' ? ALERT_SVG : INFO_SVG;
+}
+
+/* ── ACTIONS ─────────────────────────────────────────────────────── */
+function manualMove(idx) {
+  if (playing) return;
+  const bl = cur.indexOf(0), r = bl/3|0, c = bl%3, ir = idx/3|0, ic = idx%3;
+  if (Math.abs(ir-r) + Math.abs(ic-c) !== 1) return;
+  const ns = [...cur];
+  [ns[bl], ns[idx]] = [ns[idx], ns[bl]];
+  cur = ns; gCost++; sol = null; step = 0;
+  clearSolUI(); render('(manual)');
+}
+
+function shuffle() {
+  stopPlay(); sol = null; step = 0; gCost = 0; clearSolUI();
+  let s;
+  do {
+    s = [...GOAL];
+    for (let i = 8; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [s[i], s[j]] = [s[j], s[i]];
+    }
+  } while (!solvable(s) || key(s) === key(GOAL));
+  cur = s;
+  document.getElementById('stat-nodes').textContent = '—';
+  document.getElementById('stat-len').textContent = '—';
+  setStatus('Estado inicial generado. Presiona Resolver (A*) para encontrar la solución óptima.', '');
+  render();
+}
+
+function solve() {
+  stopPlay();
+  if (key(cur) === key(GOAL)) { setStatus('¡El tablero ya está en el estado objetivo!', 'ok'); return; }
+
+  const btn = document.getElementById('btn-solve');
+  btn.innerHTML = `<svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${LOADING_SVG}</svg> Calculando...`;
+  btn.disabled = true;
+  setStatus('Ejecutando A* con heurística Manhattan...', '');
+
+  const SOLVE_SVG = '<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>';
+
+  setTimeout(() => {
+    const res = astar(cur);
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${SOLVE_SVG}</svg> Resolver A*`;
+    btn.disabled = false;
+
+    if (!res) { setStatus('Sin solución (estado no alcanzable).', 'err'); return; }
+    sol = res; step = 0;
+    document.getElementById('stat-nodes').textContent = res.nodes.toLocaleString();
+    document.getElementById('stat-len').textContent = res.path.length;
+    document.getElementById('btn-fwd').disabled = false;
+    document.getElementById('btn-back').disabled = true;
+    document.getElementById('btn-play').disabled = false;
+    renderPath();
+    setStatus(`Solución óptima: ${res.path.length} movimientos · ${res.nodes.toLocaleString()} nodos explorados`, '');
+  }, 30);
+}
+
+function stepFwd() {
+  if (!sol || step >= sol.states.length-1) return;
+  step++; cur = sol.states[step]; gCost = step;
+  document.getElementById('btn-back').disabled = step <= 0;
+  document.getElementById('btn-fwd').disabled  = step >= sol.states.length-1;
+  if (step >= sol.states.length-1) stopPlay();
+  const mv = sol.path[step-1] || '';
+  renderPath(); render(mv);
+  if (step < sol.states.length-1)
+    setStatus(`Paso ${step} / ${sol.path.length}  ·  ${mv}`, '');
+}
+
+function stepBack() {
+  if (!sol || step <= 0) return;
+  step--; cur = sol.states[step]; gCost = step;
+  document.getElementById('btn-back').disabled = step <= 0;
+  document.getElementById('btn-fwd').disabled  = false;
+  renderPath(); render(step > 0 ? sol.path[step-1] : '—');
+  setStatus(`Paso ${step} / ${sol.path.length}`, '');
+}
+
+function togglePlay() { playing ? stopPlay() : startPlay(); }
+
+function startPlay() {
+  if (!sol || step >= sol.states.length-1) return;
+  playing = true;
+  document.getElementById('play-icon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  document.getElementById('play-label').textContent = 'Pausar';
+  const tick = () => {
+    if (step >= sol.states.length-1) { stopPlay(); return; }
+    stepFwd();
+    if (playing) {
+      const spd = (10 - parseInt(document.getElementById('speed').value)) * 80 + 60;
+      tid = setTimeout(tick, spd);
+    }
+  };
+  const spd = (10 - parseInt(document.getElementById('speed').value)) * 80 + 60;
+  tid = setTimeout(tick, spd);
+}
+
+function stopPlay() {
+  playing = false; clearTimeout(tid);
+  const pi = document.getElementById('play-icon');
+  const pl = document.getElementById('play-label');
+  if (pi) pi.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+  if (pl) pl.textContent = 'Auto';
+}
+
+function clearSolUI() {
+  document.getElementById('path-wrap').style.display = 'none';
+  document.getElementById('btn-fwd').disabled  = true;
+  document.getElementById('btn-back').disabled = true;
+  document.getElementById('btn-play').disabled = true;
+  document.getElementById('stat-nodes').textContent = '—';
+  document.getElementById('stat-len').textContent   = '—';
+}
+
+function resetBoard() {
+  stopPlay(); sol = null; step = 0; gCost = 0; cur = [...GOAL];
+  clearSolUI();
+  setStatus('Tablero reiniciado al estado objetivo S*.', 'ok');
+  render();
+}
+
+/* ── KEYBOARD SUPPORT ───────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (playing) return;
+  const bl = cur.indexOf(0), r = bl/3|0, c = bl%3;
+  const dirs = {ArrowUp: bl+3, ArrowDown: bl-3, ArrowLeft: bl+1, ArrowRight: bl-1};
+  const target = dirs[e.key];
+  if (target === undefined) return;
+  if (target < 0 || target > 8) return;
+  const tr = target/3|0, tc = target%3;
+  if (Math.abs(tr-r) + Math.abs(tc-c) !== 1) return;
+  e.preventDefault();
+  manualMove(target);
+});
+
+/* ── INIT ────────────────────────────────────────────────────────── */
+renderGoal();
+render();
+</script>
+</body>
+</html>
