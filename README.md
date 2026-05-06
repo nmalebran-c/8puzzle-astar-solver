@@ -1,7 +1,7 @@
-# 8-Puzzle Solver — Búsqueda A* con Heurística Manhattan
+# 8-Puzzle Solver — Búsqueda A\* con Heurística Manhattan
 
 > Proyecto de la asignatura **Inteligencia Artificial**  
-> Implementación interactiva del algoritmo A* para resolver el clásico 8-puzzle.
+> Implementación interactiva del algoritmo A\* para resolver el clásico 8-puzzle.
 
 ---
 
@@ -28,9 +28,9 @@ Estado inicial (ejemplo)     Estado objetivo S*
 
 ---
 
-## Algoritmo A*
+## Algoritmo A\*
 
-A* es un algoritmo de búsqueda informada que garantiza encontrar la solución **óptima** (menor número de movimientos) siempre que la heurística sea **admisible**.
+A\* es un algoritmo de búsqueda informada que garantiza encontrar la solución **óptima** (menor número de movimientos) siempre que la heurística sea **admisible**.
 
 ### Función de evaluación
 
@@ -38,11 +38,11 @@ A* es un algoritmo de búsqueda informada que garantiza encontrar la solución *
 f(n) = g(n) + h(n)
 ```
 
-| Término | Significado |
-|---------|-------------|
+| Término | Significado                                               |
+| ------- | --------------------------------------------------------- |
 | `g(n)`  | Costo acumulado desde el estado inicial hasta el nodo `n` |
-| `h(n)`  | Estimación heurística del costo restante hasta S* |
-| `f(n)`  | Prioridad total del nodo (menor = explorar primero) |
+| `h(n)`  | Estimación heurística del costo restante hasta S\*        |
+| `f(n)`  | Prioridad total del nodo (menor = explorar primero)       |
 
 ### Heurística: Distancia Manhattan
 
@@ -52,21 +52,21 @@ Para cada ficha `t` en posición `(r, c)` y posición objetivo `(gr, gc)`:
 h(n) = Σ |r - gr| + |c - gc|   para todo t ≠ 0
 ```
 
-Esta heurística es **admisible** (nunca sobreestima el costo real) y **consistente**, lo que garantiza que A* encuentre la solución óptima sin re-expandir nodos.
+Esta heurística es **admisible** (nunca sobreestima el costo real) y **consistente**, lo que garantiza que A\* encuentre la solución óptima sin re-expandir nodos.
 
 ### Complejidad
 
-| Caso | Estados posibles |
-|------|-----------------|
-| 8-puzzle resoluble | 9!/2 = **181,440** |
-| Peor caso (nodos explorados) | ~**180,000** nodos |
+| Caso                           | Estados posibles   |
+| ------------------------------ | ------------------ |
+| 8-puzzle resoluble             | 9!/2 = **181,440** |
+| Peor caso (nodos explorados)   | ~**180,000** nodos |
 | Profundidad máxima de solución | **31 movimientos** |
 
 ---
 
 ## Características
 
-- **Resolución automática** con A* y heurística Manhattan admisible
+- **Resolución automática** con A\* y heurística Manhattan admisible
 - **Visualización paso a paso** — navega forward/backward por la solución
 - **Reproducción automática** con control de velocidad (slider)
 - **Movimiento manual** — haz clic en las fichas adyacentes al hueco
@@ -114,11 +114,11 @@ python3 -m http.server 8080
 ### Flujo de uso
 
 1. **Barajar** — genera un estado inicial aleatorio y resoluble
-2. **Resolver A*** — ejecuta el algoritmo y muestra la solución óptima
+2. **Resolver A\*** — ejecuta el algoritmo y muestra la solución óptima
 3. Usa **← Atrás / Adelante →** para recorrer los pasos manualmente
 4. Usa **▶ Auto** para reproducir automáticamente con la velocidad deseada
 5. Haz clic en cualquier ficha adyacente al hueco para moverla manualmente
-6. **Reiniciar** — vuelve al estado objetivo S*
+6. **Reiniciar** — vuelve al estado objetivo S\*
 
 ---
 
@@ -143,8 +143,12 @@ Se usa un heap binario mínimo para extraer eficientemente el nodo con menor `f(
 
 ```javascript
 class Heap {
-  push(x)  { /* sift-up  O(log n) */ }
-  pop()    { /* sift-down O(log n) */ }
+  push(x) {
+    /* sift-up  O(log n) */
+  }
+  pop() {
+    /* sift-down O(log n) */
+  }
 }
 ```
 
@@ -154,11 +158,10 @@ Un estado es resoluble si y solo si el número de **inversiones** (pares desorde
 
 ```javascript
 function solvable(s) {
-  const a = s.filter(x => x);
+  const a = s.filter((x) => x);
   let inv = 0;
   for (let i = 0; i < a.length; i++)
-    for (let j = i+1; j < a.length; j++)
-      if (a[i] > a[j]) inv++;
+    for (let j = i + 1; j < a.length; j++) if (a[i] > a[j]) inv++;
   return inv % 2 === 0;
 }
 ```
@@ -167,13 +170,13 @@ function solvable(s) {
 
 ## Tecnologías
 
-| Tecnología | Uso |
-|------------|-----|
-| **HTML5** | Estructura semántica |
-| **CSS3** | Variables CSS, Grid, Flexbox, animaciones |
-| **JavaScript (ES6+)** | Lógica A*, UI reactiva, min-heap |
-| **Google Fonts** | Inter + JetBrains Mono |
-| **Sin frameworks** | Aplicación vanilla 100% portable |
+| Tecnología            | Uso                                       |
+| --------------------- | ----------------------------------------- |
+| **HTML5**             | Estructura semántica                      |
+| **CSS3**              | Variables CSS, Grid, Flexbox, animaciones |
+| **JavaScript (ES6+)** | Lógica A\*, UI reactiva, min-heap         |
+| **Google Fonts**      | Inter + JetBrains Mono                    |
+| **Sin frameworks**    | Aplicación vanilla 100% portable          |
 
 ---
 
@@ -183,7 +186,7 @@ Este proyecto ilustra los siguientes conceptos del programa de Inteligencia Arti
 
 - **Agente resolvedor de problemas** — el sistema percibe un estado y actúa para alcanzar el objetivo
 - **Espacio de estados** — representación implícita del grafo de búsqueda
-- **Búsqueda informada (Best-First)** — A* como instancia de búsqueda con heurística
+- **Búsqueda informada (Best-First)** — A\* como instancia de búsqueda con heurística
 - **Admisibilidad y consistencia** — propiedades que garantizan optimalidad
 - **Comparativa de heurísticas** — Manhattan domina sobre Hamming (piezas fuera de lugar)
 
@@ -191,14 +194,14 @@ Este proyecto ilustra los siguientes conceptos del programa de Inteligencia Arti
 
 ## Referencia Bibliográfica
 
-> Russell, S. & Norvig, P. (2021). *Artificial Intelligence: A Modern Approach* (4ª ed.).  
+> Russell, S. & Norvig, P. (2021). _Artificial Intelligence: A Modern Approach_ (4ª ed.).  
 > Capítulo 3: Solving Problems by Searching — §3.5 Informed (Heuristic) Search Strategies.
 
 ---
 
 ## Autor
 
-Desarrollado como proyecto práctico de la asignatura **Inteligencia Artificial**.  
+Desarrollado como proyecto práctico de la asignatura **Inteligencia Artificial** por Nicolás Malebrán (nmalebran.c@gmail.com) y Joselyn Montaño.
 
 ---
 
