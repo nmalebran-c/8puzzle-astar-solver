@@ -342,40 +342,49 @@ function generateBFS() {
  *  Corre por iteraciones en requestAnimationFrame para no bloquear UI.
  */
 
+// Radio objetivo de cada nivel BFS — usado tanto en initLayout
+// como en la fuerza radial durante la simulación. Mantiene la
+// estructura "tipo neurona" donde cada capa BFS forma una corona.
+const RBASE = 180;
+function targetRadius(d) { return RBASE * Math.sqrt(d + 0.5); }
+
 function initLayout() {
-  // Posición inicial: anillos por distancia BFS al objetivo.
-  // Radio expandido para reducir densidad y acelerar la repulsión en grilla.
-  const RBASE = 60;
   const levelCount = new Uint32Array(diameter + 1);
   for (let i = 0; i < N; i++) levelCount[nodeDist[i]]++;
   const levelSeen = new Uint32Array(diameter + 1);
   for (let i = 0; i < N; i++) {
     const d = nodeDist[i];
     const seen = levelSeen[d]++;
-    const r = RBASE * Math.sqrt(d + 0.5);
+    const r = targetRadius(d);
     // Distribuir ángulos con secuencia golden-ratio para evitar bandas radiales
     const phase = (seen * 0.61803398875) % 1;
     const ang = phase * Math.PI * 2;
     // Jitter para romper la simetría perfecta de los anillos
-    const rr = r + (Math.sin(seen * 1.7 + d * 2.3) * 4);
+    const rr = r + (Math.sin(seen * 1.7 + d * 2.3) * 8);
     posX[i] = Math.cos(ang) * rr;
     posY[i] = Math.sin(ang) * rr;
     velX[i] = 0; velY[i] = 0;
   }
 }
 
-// Parámetros del simulador.
-// repelRange chico → grilla con baja densidad por celda → iteración rápida.
+// Parámetros del simulador — modo "neurona" con repulsión multi-nivel:
+//   - Grilla fina (repelRange): repulsión precisa entre vecinos inmediatos
+//   - Grilla gruesa (coarseCellSize): repulsión global aproximada usando
+//     el centro de masa de cada celda lejana (Barnes-Hut simplificado)
+//   - Sin fuerza radial: dejamos que el grafo "respire" orgánicamente
 const SIM = {
   iter: 0,
-  maxIter: 250,
+  maxIter: 350,
   running: true,
-  repelK: 8.0,
-  repelRange: 4.5,
-  springK: 0.04,
-  springRest: 5.0,
-  gravity: 0.0004,
-  damping: 0.85,
+  repelK: 16.0,
+  repelRange: 7.0,
+  coarseK: 2.5,
+  coarseCellSize: 45.0,
+  springK: 0.005,
+  springRest: 9.0,
+  radialK: 0.0,           // desactivado para evitar look "dona"
+  gravity: 0.00015,
+  damping: 0.87,
   dt: 0.9,
   cool: 1.0,
 };
@@ -386,6 +395,17 @@ let gridCols = 0, gridRows = 0;
 let gridMinX = 0, gridMinY = 0;
 let gridHead = null;   // Int32Array(cells): primer nodo en celda (-1 si vacía)
 let gridNext = null;   // Int32Array(N): siguiente nodo en misma celda (-1 si último)
+
+// Grilla GRUESA para repulsión global aproximada (Barnes-Hut simplificado).
+// Cada celda lejana se trata como un solo "super-nodo" con masa = #nodos
+// en la celda y posición = centro de masa.
+let coarseCols = 0, coarseRows = 0;
+let coarseMinX = 0, coarseMinY = 0;
+let coarseComX = null;     // Float32Array(cells): centro de masa x
+let coarseComY = null;     // Float32Array(cells): centro de masa y
+let coarseMass = null;     // Float32Array(cells): número de nodos
+let coarseFilled = null;   // Uint32Array: índices de celdas no vacías
+let coarseFilledN = 0;     // cantidad de celdas no vacías
 
 function buildGrid() {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -412,21 +432,68 @@ function buildGrid() {
   }
 }
 
+function buildCoarseGrid() {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < N; i++) {
+    const x = posX[i], y = posY[i];
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const cs = SIM.coarseCellSize;
+  coarseMinX = minX - cs;
+  coarseMinY = minY - cs;
+  coarseCols = Math.ceil((maxX - minX) / cs) + 3;
+  coarseRows = Math.ceil((maxY - minY) / cs) + 3;
+  const cells = coarseCols * coarseRows;
+  if (!coarseComX || coarseComX.length !== cells) {
+    coarseComX = new Float32Array(cells);
+    coarseComY = new Float32Array(cells);
+    coarseMass = new Float32Array(cells);
+    coarseFilled = new Uint32Array(cells);
+  } else {
+    coarseComX.fill(0); coarseComY.fill(0); coarseMass.fill(0);
+  }
+  // Acumular posiciones por celda
+  for (let i = 0; i < N; i++) {
+    const cx = ((posX[i] - coarseMinX) / cs) | 0;
+    const cy = ((posY[i] - coarseMinY) / cs) | 0;
+    const c = cy * coarseCols + cx;
+    coarseComX[c] += posX[i];
+    coarseComY[c] += posY[i];
+    coarseMass[c]++;
+  }
+  // Convertir a centros de masa y armar lista de celdas no vacías
+  coarseFilledN = 0;
+  for (let c = 0; c < cells; c++) {
+    const m = coarseMass[c];
+    if (m > 0) {
+      coarseComX[c] /= m;
+      coarseComY[c] /= m;
+      coarseFilled[coarseFilledN++] = c;
+    }
+  }
+}
+
 function simulateStep() {
   buildGrid();
+  buildCoarseGrid();
   const repelK = SIM.repelK * SIM.cool;
+  const coarseK = SIM.coarseK * SIM.cool;
   const range = SIM.repelRange;
   const range2 = range * range;
+  const cs = SIM.coarseCellSize;
 
-  // ── REPULSIÓN local en grilla ──
+  // ── REPULSIÓN (fina local + gruesa global) + GRAVEDAD ──
   for (let i = 0; i < N; i++) {
     const xi = posX[i], yi = posY[i];
-    const cx = ((xi - gridMinX) / gridCellSize) | 0;
-    const cy = ((yi - gridMinY) / gridCellSize) | 0;
     let fx = 0, fy = 0;
+
+    // (a) Repulsión fina: vecinos inmediatos en grilla de rango pequeño
+    const cxf = ((xi - gridMinX) / gridCellSize) | 0;
+    const cyf = ((yi - gridMinY) / gridCellSize) | 0;
     for (let oy = -1; oy <= 1; oy++) {
       for (let ox = -1; ox <= 1; ox++) {
-        const c = (cy + oy) * gridCols + (cx + ox);
+        const c = (cyf + oy) * gridCols + (cxf + ox);
         if (c < 0 || c >= gridHead.length) continue;
         let j = gridHead[c];
         while (j !== -1) {
@@ -445,9 +512,33 @@ function simulateStep() {
         }
       }
     }
-    // Gravedad
+
+    // (b) Repulsión gruesa: cada celda lejana se trata como un super-nodo
+    //     con masa = #nodos y posición = centro de masa. Saltamos las
+    //     3×3 celdas inmediatamente vecinas (cubiertas por la grilla fina).
+    const cxc = ((xi - coarseMinX) / cs) | 0;
+    const cyc = ((yi - coarseMinY) / cs) | 0;
+    for (let k = 0; k < coarseFilledN; k++) {
+      const c = coarseFilled[k];
+      const ccx = c % coarseCols;
+      const ccy = (c / coarseCols) | 0;
+      // Skip celdas inmediatamente vecinas (las cubre la grilla fina)
+      const adx = ccx - cxc, ady = ccy - cyc;
+      if (adx >= -1 && adx <= 1 && ady >= -1 && ady <= 1) continue;
+      const dx = xi - coarseComX[c];
+      const dy = yi - coarseComY[c];
+      const d2 = dx*dx + dy*dy;
+      if (d2 < 1) continue;
+      const inv = 1.0 / Math.sqrt(d2);
+      const f = coarseK * coarseMass[c] * inv * inv;
+      fx += dx * inv * f;
+      fy += dy * inv * f;
+    }
+
+    // (c) Gravedad débil: mantiene el grafo unido pese a la repulsión global
     fx -= xi * SIM.gravity;
     fy -= yi * SIM.gravity;
+
     velX[i] = (velX[i] + fx * SIM.dt) * SIM.damping;
     velY[i] = (velY[i] + fy * SIM.dt) * SIM.damping;
   }
