@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8-Puzzle · Espacio de Estados Completo (181,440 nodos)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg0:#07090f; --bg1:#0d1120; --bg2:#111827; --bg3:#1a2236;
+      --border:rgba(255,255,255,0.07); --border-m:rgba(255,255,255,0.11); --border-h:rgba(255,255,255,0.18);
+      --accent:#818cf8; --accent-d:#6366f1; --accent-bg:rgba(99,102,241,0.12); --accent-bd:rgba(99,102,241,0.35);
+      --success:#34d399; --success-bg:rgba(52,211,153,0.1); --success-bd:rgba(52,211,153,0.3);
+      --warn:#fbbf24; --danger:#f87171;
+      --t1:#f1f5f9; --t2:#94a3b8; --t3:#475569;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.5);
+      --shadow-md:0 4px 12px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.4);
+      --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px;
+      --node:#60a5fa; --edge:rgba(148,163,184,0.18);
+      --canvas-bg:#0a0d18;
+    }
+    [data-theme="light"] {
+      --bg0:#f0f2f5; --bg1:#e8ecf1; --bg2:#ffffff; --bg3:#f4f6f9;
+      --border:rgba(0,0,0,0.07); --border-m:rgba(0,0,0,0.11); --border-h:rgba(0,0,0,0.2);
+      --accent:#6366f1; --accent-d:#4f46e5; --accent-bg:rgba(99,102,241,0.08); --accent-bd:rgba(99,102,241,0.3);
+      --success:#059669; --success-bg:rgba(5,150,105,0.08); --success-bd:rgba(5,150,105,0.3);
+      --warn:#d97706; --danger:#dc2626;
+      --t1:#0f172a; --t2:#64748b; --t3:#94a3b8;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.08);
+      --shadow-md:0 4px 12px rgba(0,0,0,.09),0 1px 3px rgba(0,0,0,.07);
+      --node:#2563eb; --edge:rgba(71,85,105,0.22);
+      --canvas-bg:#ffffff;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg0);color:var(--t1);min-height:100vh;transition:background .3s,color .3s;-webkit-font-smoothing:antialiased;}
+    .page{max-width:1280px;margin:0 auto;padding:2rem 1.25rem 3rem;}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;}
+    .header-title{font-size:clamp(1.3rem,3vw,1.75rem);font-weight:700;letter-spacing:-0.03em;color:var(--t1);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;padding:3px 9px;border-radius:20px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);}
+    .header-sub{font-size:13px;color:var(--t2);margin-top:4px;}
+    .theme-btn{flex-shrink:0;width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:var(--bg2);border:1px solid var(--border-m);border-radius:var(--r-md);color:var(--t2);cursor:pointer;transition:all .2s;}
+    .theme-btn:hover{color:var(--t1);border-color:var(--border-h);background:var(--bg3);}
+
+    .metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
+    .metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:.85rem 1rem;box-shadow:var(--shadow-sm);transition:border-color .2s;}
+    .metric-card:hover{border-color:var(--border-m);}
+    .m-icon{width:24px;height:24px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+    .ic-indigo{background:var(--accent-bg);color:var(--accent);}
+    .ic-blue{background:rgba(59,130,246,.12);color:#60a5fa;}
+    .ic-amber{background:rgba(251,191,36,.12);color:#fbbf24;}
+    .ic-green{background:var(--success-bg);color:var(--success);}
+    .m-label{font-size:10.5px;color:var(--t2);font-weight:500;margin-bottom:2px;}
+    .m-val{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--t1);line-height:1;}
+
+    .canvas-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-md);overflow:hidden;}
+    .card-header{padding:.9rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+    .card-label{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);display:flex;align-items:center;gap:6px;}
+
+    .controls{padding:.85rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:7px;align-items:center;}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;border-radius:var(--r-md);border:1px solid var(--border-m);background:var(--bg3);color:var(--t1);cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1;}
+    .btn:hover:not(:disabled){background:var(--bg1);border-color:var(--border-h);}
+    .btn:active:not(:disabled){transform:scale(.95);}
+    .btn:disabled{opacity:.3;cursor:not-allowed;}
+    .btn-primary{background:var(--accent-d);border-color:var(--accent-d);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.3);}
+    .btn-primary:hover:not(:disabled){background:#4f46e5;border-color:#4f46e5;box-shadow:0 4px 14px rgba(99,102,241,.45);}
+    .btn-ghost{background:transparent;color:var(--t2);}
+    .btn-ghost:hover:not(:disabled){background:var(--bg3);color:var(--t1);}
+    .v-divider{width:1px;height:22px;background:var(--border-m);margin:0 1px;flex-shrink:0;}
+    .toggle-grp{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;}
+    .toggle-grp .btn{border:none;border-radius:0;padding:6px 11px;font-size:12px;background:transparent;}
+    .toggle-grp .btn.on{background:var(--accent-bg);color:var(--accent);}
+
+    .status{padding:.55rem .9rem;background:var(--bg1);border-bottom:1px solid var(--border);font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--t2);display:flex;align-items:center;gap:8px;min-height:32px;}
+    .status.ready{color:var(--success);}
+    .status.busy{color:var(--warn);}
+    .spinner{width:11px;height:11px;border:1.5px solid var(--border-m);border-top-color:var(--warn);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    .canvas-wrap{position:relative;background:var(--canvas-bg);overflow:hidden;height:min(75vh,800px);}
+    #gc{display:block;width:100%;height:100%;cursor:grab;}
+    #gc:active{cursor:grabbing;}
+    .hint{position:absolute;bottom:10px;left:12px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--t3);background:rgba(0,0,0,.35);padding:4px 9px;border-radius:6px;backdrop-filter:blur(8px);pointer-events:none;}
+    [data-theme="light"] .hint{background:rgba(255,255,255,.7);color:var(--t2);}
+
+    @media (max-width:640px){
+      .page{padding:1rem .75rem 2rem;}
+      .metrics-row{grid-template-columns:1fr 1fr;}
+      .controls{gap:5px;}
+      .btn{padding:6px 10px;font-size:12px;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="header">
+    <div>
+      <div class="header-title">
+        Espacio de Estados Completo
+        <span class="badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+          Grafo · 8-Puzzle
+        </span>
+      </div>
+      <div class="header-sub">Los 9!/2 = 181,440 estados resolubles del 8-puzzle, conectados por movimientos válidos.</div>
+    </div>
+    <button class="theme-btn" id="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema">
+      <svg id="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="m-icon ic-indigo">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>
+      </div>
+      <div class="m-label">Estados (nodos)</div>
+      <div class="m-val" id="m-nodes">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-icon ic-blue">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/></svg>
+      </div>
+      <div class="m-label">Transiciones (aristas)</div>
+      <div class="m-val" id="m-edges">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-icon ic-amber">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      </div>
+      <div class="m-label">Iteración layout</div>
+      <div class="m-val" id="m-iter">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-icon ic-green">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="m-label">Diámetro máx.</div>
+      <div class="m-val" id="m-diam">—</div>
+    </div>
+  </div>
+
+  <div class="canvas-card">
+    <div class="card-header">
+      <span class="card-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+        Grafo del espacio de estados
+      </span>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="btn-toggle">
+        <svg id="play-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        <span id="play-label">Pausar layout</span>
+      </button>
+      <button class="btn btn-ghost" id="btn-reset">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95L1 10"/></svg>
+        Reiniciar
+      </button>
+      <button class="btn btn-ghost" id="btn-fit">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4"/></svg>
+        Ajustar vista
+      </button>
+      <div class="v-divider"></div>
+      <div class="toggle-grp">
+        <button class="btn on" id="t-edges">Aristas</button>
+        <button class="btn on" id="t-nodes">Nodos</button>
+      </div>
+      <div class="v-divider"></div>
+      <span style="font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace">Zoom: rueda · Pan: arrastrar</span>
+    </div>
+
+    <div class="status" id="status">
+      <span class="spinner" id="spinner"></span>
+      <span id="status-text">Inicializando…</span>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="gc"></canvas>
+      <div class="hint" id="hint">Iteración 0 · zoom 1.0×</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────────
+ *  ESPACIO DE ESTADOS COMPLETO DEL 8-PUZZLE
+ *  9!/2 = 181,440 estados resolubles
+ *  Generación BFS + layout force-directed (Barnes-Hut local) + Canvas
+ * ───────────────────────────────────────────────────────────────── */
+
+/* ── TEMA ── */
+const htmlEl = document.documentElement;
+let isDark = true;
+const MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+const SUN  = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  isDark = !isDark;
+  htmlEl.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  document.getElementById('theme-icon').innerHTML = isDark ? MOON : SUN;
+  readColors();
+  scheduleDraw();
+});
+
+/* ── UTILIDADES ── */
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('es-CL');
+
+function setStatus(text, kind) {
+  $('status-text').textContent = text;
+  $('status').className = 'status' + (kind ? ' ' + kind : '');
+  $('spinner').style.display = (kind === 'ready') ? 'none' : 'inline-block';
+}
+
+/* ── 1. GENERACIÓN DEL ESPACIO DE ESTADOS POR BFS ──
+ *  Empezamos desde S* = [1,2,3,4,5,6,7,8,0] y exploramos todos
+ *  los estados alcanzables. Como el grafo es no dirigido, BFS
+ *  explora exactamente los 181,440 estados de la mitad resoluble.
+ */
+
+// Codificación de un estado [a,b,c,d,e,f,g,h,i] como Lehmer index (0..362879).
+// Garantiza biyección permutación↔entero, usa menos memoria que strings.
+const FACT = [40320,5040,720,120,24,6,2,1,1]; // 8! .. 0!
+function encode(s) {
+  let idx = 0;
+  const used = new Uint8Array(9);
+  for (let i = 0; i < 9; i++) {
+    const t = s[i];
+    let rank = t;
+    for (let j = 0; j < t; j++) if (used[j]) rank--;
+    used[t] = 1;
+    idx += rank * FACT[i];
+  }
+  return idx;
+}
+function decode(idx) {
+  const s = new Uint8Array(9);
+  const avail = [0,1,2,3,4,5,6,7,8];
+  for (let i = 0; i < 9; i++) {
+    const r = (idx / FACT[i]) | 0;
+    idx -= r * FACT[i];
+    s[i] = avail.splice(r, 1)[0];
+  }
+  return s;
+}
+
+// Vecinos: índice 0-8 del hueco → posiciones adyacentes
+const NB = [
+  [1,3], [0,2,4], [1,5],
+  [0,4,6], [1,3,5,7], [2,4,8],
+  [3,7], [4,6,8], [5,7]
+];
+
+let N = 0;            // número de estados (esperado: 181440)
+let nodeIdx = null;   // Uint32Array: encode→índice secuencial (0..N-1), o 0xFFFFFFFF si no descubierto
+let nodeEnc = null;   // Uint32Array(N): índice→encode
+let nodeDist = null;  // Uint8Array(N): distancia BFS al objetivo S*
+let posX = null;      // Float32Array(N)
+let posY = null;      // Float32Array(N)
+let velX = null;      // Float32Array(N)
+let velY = null;      // Float32Array(N)
+let edgesA = null;    // Uint32Array(E): origen
+let edgesB = null;    // Uint32Array(E): destino (B > A para evitar duplicados)
+let E = 0;
+let diameter = 0;
+
+function generateBFS() {
+  const TOTAL = 181440;
+  nodeIdx = new Uint32Array(362880).fill(0xFFFFFFFF);
+  nodeEnc = new Uint32Array(TOTAL);
+  nodeDist = new Uint8Array(TOTAL);
+
+  const goal = [1,2,3,4,5,6,7,8,0];
+  const goalEnc = encode(goal);
+  nodeIdx[goalEnc] = 0;
+  nodeEnc[0] = goalEnc;
+  nodeDist[0] = 0;
+
+  // Aristas: lista temporal de pares (a,b) con a<b
+  const tmpA = [], tmpB = [];
+
+  // Cola BFS
+  const queue = new Uint32Array(TOTAL);
+  queue[0] = goalEnc;
+  let qHead = 0, qTail = 1, count = 1;
+
+  while (qHead < qTail) {
+    const curEnc = queue[qHead++];
+    const curIdx = nodeIdx[curEnc];
+    const curDist = nodeDist[curIdx];
+    const cur = decode(curEnc);
+
+    // Localizar el hueco
+    let blank = 0;
+    for (; cur[blank] !== 0; blank++);
+
+    const neighbors = NB[blank];
+    for (let k = 0; k < neighbors.length; k++) {
+      const swap = neighbors[k];
+      // Hacer swap
+      cur[blank] = cur[swap]; cur[swap] = 0;
+      const nEnc = encode(cur);
+      // Deshacer swap
+      cur[swap] = cur[blank]; cur[blank] = 0;
+
+      let nIdx = nodeIdx[nEnc];
+      if (nIdx === 0xFFFFFFFF) {
+        nIdx = count++;
+        nodeIdx[nEnc] = nIdx;
+        nodeEnc[nIdx] = nEnc;
+        nodeDist[nIdx] = curDist + 1;
+        if (curDist + 1 > diameter) diameter = curDist + 1;
+        queue[qTail++] = nEnc;
+      }
+      // Registrar arista una sola vez
+      if (curIdx < nIdx) {
+        tmpA.push(curIdx);
+        tmpB.push(nIdx);
+      }
+    }
+  }
+
+  N = count;
+  E = tmpA.length;
+  edgesA = new Uint32Array(tmpA);
+  edgesB = new Uint32Array(tmpB);
+  posX = new Float32Array(N);
+  posY = new Float32Array(N);
+  velX = new Float32Array(N);
+  velY = new Float32Array(N);
+}
+
+/* ── 2. LAYOUT FORCE-DIRECTED ──
+ *  Inicialización: radial por distancia BFS (el objetivo S* al centro).
+ *  Refinamiento: repulsión local en grilla uniforme + atracción por aristas.
+ *  Corre por iteraciones en requestAnimationFrame para no bloquear UI.
+ */
+
+function initLayout() {
+  // Posición inicial: anillos por distancia BFS al objetivo.
+  // Radio expandido para reducir densidad y acelerar la repulsión en grilla.
+  const RBASE = 60;
+  const levelCount = new Uint32Array(diameter + 1);
+  for (let i = 0; i < N; i++) levelCount[nodeDist[i]]++;
+  const levelSeen = new Uint32Array(diameter + 1);
+  for (let i = 0; i < N; i++) {
+    const d = nodeDist[i];
+    const seen = levelSeen[d]++;
+    const r = RBASE * Math.sqrt(d + 0.5);
+    // Distribuir ángulos con secuencia golden-ratio para evitar bandas radiales
+    const phase = (seen * 0.61803398875) % 1;
+    const ang = phase * Math.PI * 2;
+    // Jitter para romper la simetría perfecta de los anillos
+    const rr = r + (Math.sin(seen * 1.7 + d * 2.3) * 4);
+    posX[i] = Math.cos(ang) * rr;
+    posY[i] = Math.sin(ang) * rr;
+    velX[i] = 0; velY[i] = 0;
+  }
+}
+
+// Parámetros del simulador.
+// repelRange chico → grilla con baja densidad por celda → iteración rápida.
+const SIM = {
+  iter: 0,
+  maxIter: 250,
+  running: true,
+  repelK: 8.0,
+  repelRange: 4.5,
+  springK: 0.04,
+  springRest: 5.0,
+  gravity: 0.0004,
+  damping: 0.85,
+  dt: 0.9,
+  cool: 1.0,
+};
+
+// Grilla espacial uniforme para repulsión en O(N)
+let gridCellSize = 6.0;
+let gridCols = 0, gridRows = 0;
+let gridMinX = 0, gridMinY = 0;
+let gridHead = null;   // Int32Array(cells): primer nodo en celda (-1 si vacía)
+let gridNext = null;   // Int32Array(N): siguiente nodo en misma celda (-1 si último)
+
+function buildGrid() {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < N; i++) {
+    const x = posX[i], y = posY[i];
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  gridCellSize = SIM.repelRange;
+  gridMinX = minX - gridCellSize;
+  gridMinY = minY - gridCellSize;
+  gridCols = Math.ceil((maxX - minX) / gridCellSize) + 3;
+  gridRows = Math.ceil((maxY - minY) / gridCellSize) + 3;
+  const cells = gridCols * gridRows;
+  if (!gridHead || gridHead.length !== cells) gridHead = new Int32Array(cells);
+  if (!gridNext || gridNext.length !== N) gridNext = new Int32Array(N);
+  gridHead.fill(-1);
+  for (let i = 0; i < N; i++) {
+    const cx = ((posX[i] - gridMinX) / gridCellSize) | 0;
+    const cy = ((posY[i] - gridMinY) / gridCellSize) | 0;
+    const c = cy * gridCols + cx;
+    gridNext[i] = gridHead[c];
+    gridHead[c] = i;
+  }
+}
+
+function simulateStep() {
+  buildGrid();
+  const repelK = SIM.repelK * SIM.cool;
+  const range = SIM.repelRange;
+  const range2 = range * range;
+
+  // ── REPULSIÓN local en grilla ──
+  for (let i = 0; i < N; i++) {
+    const xi = posX[i], yi = posY[i];
+    const cx = ((xi - gridMinX) / gridCellSize) | 0;
+    const cy = ((yi - gridMinY) / gridCellSize) | 0;
+    let fx = 0, fy = 0;
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        const c = (cy + oy) * gridCols + (cx + ox);
+        if (c < 0 || c >= gridHead.length) continue;
+        let j = gridHead[c];
+        while (j !== -1) {
+          if (j !== i) {
+            const dx = xi - posX[j];
+            const dy = yi - posY[j];
+            const d2 = dx*dx + dy*dy;
+            if (d2 > 0 && d2 < range2) {
+              const inv = 1.0 / Math.sqrt(d2 + 0.01);
+              const f = repelK * inv * inv;
+              fx += dx * f * inv;
+              fy += dy * f * inv;
+            }
+          }
+          j = gridNext[j];
+        }
+      }
+    }
+    // Gravedad
+    fx -= xi * SIM.gravity;
+    fy -= yi * SIM.gravity;
+    velX[i] = (velX[i] + fx * SIM.dt) * SIM.damping;
+    velY[i] = (velY[i] + fy * SIM.dt) * SIM.damping;
+  }
+
+  // ── ATRACCIÓN por aristas (resorte Hooke) ──
+  const sK = SIM.springK * SIM.cool;
+  const rest = SIM.springRest;
+  for (let k = 0; k < E; k++) {
+    const a = edgesA[k], b = edgesB[k];
+    const dx = posX[b] - posX[a];
+    const dy = posY[b] - posY[a];
+    const dist = Math.sqrt(dx*dx + dy*dy) + 1e-6;
+    const f = sK * (dist - rest);
+    const fx = dx / dist * f;
+    const fy = dy / dist * f;
+    velX[a] += fx * SIM.dt;
+    velY[a] += fy * SIM.dt;
+    velX[b] -= fx * SIM.dt;
+    velY[b] -= fy * SIM.dt;
+  }
+
+  // ── Integración ──
+  const maxV = 2.5; // cap velocidad para evitar explosión
+  for (let i = 0; i < N; i++) {
+    let vx = velX[i], vy = velY[i];
+    const v2 = vx*vx + vy*vy;
+    if (v2 > maxV * maxV) { const s = maxV / Math.sqrt(v2); vx *= s; vy *= s; }
+    posX[i] += vx;
+    posY[i] += vy;
+    velX[i] = vx;
+    velY[i] = vy;
+  }
+
+  SIM.iter++;
+  // Enfriamiento suave
+  if (SIM.iter > 100) SIM.cool = Math.max(0.25, SIM.cool * 0.997);
+}
+
+/* ── 3. RENDERIZADO CANVAS ── */
+
+const canvas = $('gc');
+const ctx = canvas.getContext('2d', { alpha: false });
+let CW = 0, CH = 0, DPR = 1;
+let view = { x: 0, y: 0, scale: 1 };   // pan x/y en píxeles, scale factor
+let needsDraw = true;
+
+let COL = {};
+function readColors() {
+  const cs = getComputedStyle(document.body);
+  COL.bg = cs.getPropertyValue('--canvas-bg').trim();
+  COL.node = cs.getPropertyValue('--node').trim();
+  COL.edge = cs.getPropertyValue('--edge').trim();
+}
+readColors();
+
+let showEdges = true, showNodes = true;
+
+function resize() {
+  const wrap = canvas.parentElement;
+  DPR = window.devicePixelRatio || 1;
+  CW = wrap.clientWidth;
+  CH = wrap.clientHeight;
+  canvas.width = CW * DPR;
+  canvas.height = CH * DPR;
+  canvas.style.width = CW + 'px';
+  canvas.style.height = CH + 'px';
+  scheduleDraw();
+}
+window.addEventListener('resize', resize);
+
+function fitToView() {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < N; i++) {
+    const x = posX[i], y = posY[i];
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const w = maxX - minX || 1, h = maxY - minY || 1;
+  const pad = 40;
+  const sx = (CW - 2*pad) / w;
+  const sy = (CH - 2*pad) / h;
+  view.scale = Math.min(sx, sy);
+  view.x = CW/2 - (minX + w/2) * view.scale;
+  view.y = CH/2 - (minY + h/2) * view.scale;
+  scheduleDraw();
+}
+
+function scheduleDraw() { needsDraw = true; }
+
+function draw() {
+  if (!needsDraw && !SIM.running) return;
+  needsDraw = false;
+
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = COL.bg;
+  ctx.fillRect(0, 0, CW, CH);
+
+  ctx.setTransform(DPR * view.scale, 0, 0, DPR * view.scale, DPR * view.x, DPR * view.y);
+
+  // Frustum: coordenadas de mundo visibles
+  const visMinX = -view.x / view.scale;
+  const visMinY = -view.y / view.scale;
+  const visMaxX = visMinX + CW / view.scale;
+  const visMaxY = visMinY + CH / view.scale;
+
+  // ── ARISTAS ──
+  if (showEdges) {
+    ctx.strokeStyle = COL.edge;
+    ctx.lineWidth = Math.max(0.4, 0.6 / view.scale);
+    ctx.beginPath();
+    let segs = 0;
+    for (let k = 0; k < E; k++) {
+      const a = edgesA[k], b = edgesB[k];
+      const ax = posX[a], ay = posY[a], bx = posX[b], by = posY[b];
+      // Cull rápido: ambos extremos fuera del mismo lado del frustum
+      if ((ax < visMinX && bx < visMinX) || (ax > visMaxX && bx > visMaxX) ||
+          (ay < visMinY && by < visMinY) || (ay > visMaxY && by > visMaxY)) continue;
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      segs++;
+      // Para evitar paths gigantes, hacer stroke cada N segmentos
+      if (segs >= 50000) { ctx.stroke(); ctx.beginPath(); segs = 0; }
+    }
+    if (segs > 0) ctx.stroke();
+  }
+
+  // ── NODOS ──
+  if (showNodes) {
+    ctx.fillStyle = COL.node;
+    // Tamaño de nodo en píxeles (mundo): mantenerlo legible en zoom
+    const r = Math.max(0.4, 1.2 / view.scale);
+    const d = r * 2;
+    // Para mejor rendimiento usamos rect en lugar de arc cuando el nodo es pequeño
+    if (r * view.scale < 2) {
+      for (let i = 0; i < N; i++) {
+        const x = posX[i], y = posY[i];
+        if (x < visMinX || x > visMaxX || y < visMinY || y > visMaxY) continue;
+        ctx.fillRect(x - r, y - r, d, d);
+      }
+    } else {
+      ctx.beginPath();
+      for (let i = 0; i < N; i++) {
+        const x = posX[i], y = posY[i];
+        if (x < visMinX || x > visMaxX || y < visMinY || y > visMaxY) continue;
+        ctx.moveTo(x + r, y);
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+  }
+
+  // Hint
+  $('hint').textContent = `Iteración ${SIM.iter} · zoom ${view.scale.toFixed(2)}× · ${fmt(N)} nodos`;
+}
+
+/* ── INTERACCIÓN: zoom + pan ── */
+
+let dragging = false, dragLast = null;
+canvas.addEventListener('mousedown', e => {
+  dragging = true;
+  dragLast = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  view.x += (e.clientX - dragLast.x);
+  view.y += (e.clientY - dragLast.y);
+  dragLast = { x: e.clientX, y: e.clientY };
+  scheduleDraw();
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  // Punto del mundo bajo el cursor antes del zoom
+  const wx = (mx - view.x) / view.scale;
+  const wy = (my - view.y) / view.scale;
+  const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+  view.scale = Math.max(0.02, Math.min(60, view.scale * factor));
+  // Reposicionar pan para que ese punto del mundo siga bajo el cursor
+  view.x = mx - wx * view.scale;
+  view.y = my - wy * view.scale;
+  scheduleDraw();
+}, { passive: false });
+
+// Touch básico (un dedo = pan, pinza = zoom)
+let touchState = null;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    touchState = { mode: 'pan', x: e.touches[0].clientX, y: e.touches[0].clientY };
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    touchState = { mode: 'zoom', dist: Math.hypot(dx, dy), scale: view.scale,
+      cx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      cy: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+  }
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (!touchState) return;
+  if (touchState.mode === 'pan' && e.touches.length === 1) {
+    view.x += e.touches[0].clientX - touchState.x;
+    view.y += e.touches[0].clientY - touchState.y;
+    touchState.x = e.touches[0].clientX;
+    touchState.y = e.touches[0].clientY;
+    scheduleDraw();
+  } else if (touchState.mode === 'zoom' && e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    const rect = canvas.getBoundingClientRect();
+    const mx = touchState.cx - rect.left;
+    const my = touchState.cy - rect.top;
+    const wx = (mx - view.x) / view.scale;
+    const wy = (my - view.y) / view.scale;
+    view.scale = Math.max(0.02, Math.min(60, touchState.scale * (dist / touchState.dist)));
+    view.x = mx - wx * view.scale;
+    view.y = my - wy * view.scale;
+    scheduleDraw();
+    e.preventDefault();
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', () => { touchState = null; }, { passive: true });
+
+/* ── CONTROLES ── */
+$('btn-toggle').addEventListener('click', () => {
+  SIM.running = !SIM.running;
+  $('play-icon').innerHTML = SIM.running
+    ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+    : '<polygon points="5 3 19 12 5 21 5 3"/>';
+  $('play-label').textContent = SIM.running ? 'Pausar layout' : 'Reanudar layout';
+  if (SIM.running) {
+    setStatus('Refinando layout… iteración ' + SIM.iter, 'busy');
+  } else {
+    setStatus('Layout pausado · ' + fmt(N) + ' estados, ' + fmt(E) + ' aristas', 'ready');
+  }
+});
+$('btn-reset').addEventListener('click', () => {
+  initLayout();
+  SIM.iter = 0; SIM.cool = 1.0;
+  SIM.running = true;
+  $('play-icon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  $('play-label').textContent = 'Pausar layout';
+  setStatus('Refinando layout… iteración 0', 'busy');
+  fitToView();
+});
+$('btn-fit').addEventListener('click', fitToView);
+$('t-edges').addEventListener('click', () => {
+  showEdges = !showEdges;
+  $('t-edges').classList.toggle('on', showEdges);
+  scheduleDraw();
+});
+$('t-nodes').addEventListener('click', () => {
+  showNodes = !showNodes;
+  $('t-nodes').classList.toggle('on', showNodes);
+  scheduleDraw();
+});
+
+/* ── LOOP PRINCIPAL ── */
+function loop() {
+  if (SIM.running && SIM.iter < SIM.maxIter) {
+    simulateStep();
+    needsDraw = true;
+    if (SIM.iter % 5 === 0) {
+      $('m-iter').textContent = SIM.iter + ' / ' + SIM.maxIter;
+      setStatus('Refinando layout… iteración ' + SIM.iter, 'busy');
+    }
+    if (SIM.iter >= SIM.maxIter) {
+      SIM.running = false;
+      $('play-icon').innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+      $('play-label').textContent = 'Reanudar layout';
+      setStatus('Layout completado · ' + fmt(N) + ' estados, ' + fmt(E) + ' aristas', 'ready');
+    }
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ── ARRANQUE ASINCRÓNICO ── */
+async function boot() {
+  resize();
+  setStatus('Generando los 181,440 estados con BFS desde S*…', 'busy');
+  // Ceder al navegador para que pinte el "loading" antes del BFS pesado
+  await new Promise(r => setTimeout(r, 30));
+  const t0 = performance.now();
+  generateBFS();
+  const tBFS = ((performance.now() - t0) / 1000).toFixed(2);
+
+  $('m-nodes').textContent = fmt(N);
+  $('m-edges').textContent = fmt(E);
+  $('m-diam').textContent = diameter;
+  $('m-iter').textContent = '0 / ' + SIM.maxIter;
+
+  setStatus(`Inicializando layout (BFS: ${tBFS}s)…`, 'busy');
+  await new Promise(r => setTimeout(r, 30));
+  initLayout();
+  fitToView();
+  setStatus('Refinando layout… iteración 0', 'busy');
+  requestAnimationFrame(loop);
+}
+boot();
+
+</script>
+</body>
+</html>

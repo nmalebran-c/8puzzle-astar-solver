@@ -83,9 +83,30 @@ Esta heurística es **admisible** (nunca sobreestima el costo real) y **consiste
 
 ```
 .
-├── 8puzzle_astar_solver.html   # Aplicación completa (HTML + CSS + JS)
+├── 8puzzle_astar_solver.html   # Solver interactivo (HTML + CSS + JS)
+├── astar_8puzzle_graph.html    # Árbol de búsqueda A* paso a paso
+├── 8puzzle_state_space.html    # Grafo del espacio de estados completo (181,440 nodos)
 └── README.md                   # Este archivo
 ```
+
+---
+
+## Visualizador del Espacio de Estados Completo
+
+`8puzzle_state_space.html` renderiza **los 9!/2 = 181,440 estados resolubles** del 8-puzzle conectados por sus transiciones válidas (movimientos del hueco). Se enumeran por **BFS** desde el estado objetivo S\*, y se distribuyen mediante un **layout force-directed** (atracción por aristas + repulsión local en grilla espacial uniforme + gravedad hacia el centro).
+
+| Métrica            | Valor       |
+| ------------------ | ----------- |
+| Estados (nodos)    | **181,440** |
+| Transiciones       | **241,920** |
+| Diámetro del grafo | **31**      |
+| Iteraciones layout | 250         |
+
+Controles: rueda del mouse para zoom, arrastrar para desplazar, botones para pausar/reanudar/reiniciar el layout y togglear nodos/aristas. Permite observar visualmente:
+
+- El **núcleo denso** (estados cerca de S\*) y la dispersión hacia profundidades altas.
+- La estructura de "explosión combinatoria" del espacio de búsqueda.
+- Por qué heurísticas como Manhattan son críticas: un BFS ingenuo sobre este grafo es prohibitivo.
 
 ---
 
