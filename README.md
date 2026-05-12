@@ -234,4 +234,4 @@ MIT License — libre para uso educativo.
 
 ## Nota técnica para el profesor
 
-Hay dos caminos. Antes de elegir te explico el problema técnico clave: con 181K nodos no podemos repulsar TODOS contra TODOS (sería O(N²) = 33 mil millones de operaciones). Por eso uso una grilla local de rango 7 — pero eso significa que nodos lejanos NO se repelen, así que tienden a colapsar al centro (bola) o a su anillo (dona).
+Hay dos caminos. Antes de elegir le explico el problema técnico clave: con 181K nodos no podemos repulsar TODOS contra TODOS (sería O(N²) = 33 mil millones de operaciones). Por eso uso una grilla local de rango 7 — pero eso significa que nodos lejanos NO se repelen, así que tienden a colapsar al centro (bola) o a su anillo (dona).
